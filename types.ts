@@ -6,3 +6,10 @@ export interface VariableParam {
 }
 
 export type VariableCollection = VariableParam[];
+
+export interface MaskItem {
+  key: string;
+  mask: string;
+}
+
+export type MaskCollection = MaskItem[];

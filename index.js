@@ -47,6 +47,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
 exports.__esModule = true;
 var fs = require("fs");
 var path = require("path");
+var maskSchema = require("./mask.json");
 var readFile = function (filePath) {
     return new Promise(function (resolve, reject) {
         if (fs.readFile)
@@ -84,11 +85,6 @@ var decodeKeys = function (data) {
         };
     });
     var parentKeys = [
-        "dark",
-        "darkest",
-        "light",
-        "lightest",
-        "gradient",
         "ILST",
         "AEFT",
         "DRWV",
@@ -96,6 +92,12 @@ var decodeKeys = function (data) {
         "IDSN",
         "PHXS",
         "PPRO",
+        "AUDT",
+        "dark",
+        "darkest",
+        "light",
+        "lightest",
+        "gradient",
     ].map(function (i) {
         return {
             key: i,
@@ -122,7 +124,21 @@ var decodeWriter = function (index) {
         console.error("Errored at ".concat(index, " => ").concat(alpha.length >= index ? alpha[index] : index));
     }
 };
-var runTest = function (param) { return __awaiter(void 0, void 0, void 0, function () {
+var readDir = function (targetPath) { return __awaiter(void 0, void 0, void 0, function () {
+    return __generator(this, function (_a) {
+        return [2 /*return*/, new Promise(function (resolve, reject) {
+                if (!fs.existsSync(path.resolve(targetPath)) ||
+                    !fs.lstatSync(path.resolve(targetPath)).isDirectory())
+                    reject("Path is not a folder or does not exist");
+                fs.readdir(path.resolve(targetPath), { encoding: "utf-8" }, function (err, files) {
+                    if (err)
+                        reject(err);
+                    resolve(files);
+                });
+            })];
+    });
+}); };
+var runMaskTest = function () { return __awaiter(void 0, void 0, void 0, function () {
     var basePath, fileData, _a, _b, result, treated;
     return __generator(this, function (_c) {
         switch (_c.label) {
@@ -133,10 +149,115 @@ var runTest = function (param) { return __awaiter(void 0, void 0, void 0, functi
             case 1:
                 fileData = _b.apply(_a, [_c.sent()]);
                 result = decodeKeys(fileData);
-                treated = fs.writeFileSync(path.resolve("./result.json"), JSON.stringify(result));
-                console.log("Done?");
+                treated = fs.writeFileSync(path.resolve("./mask.json"), JSON.stringify(result));
+                console.log("Done");
                 return [2 /*return*/];
         }
     });
 }); };
-runTest("Hello world");
+var runTest = function () { return __awaiter(void 0, void 0, void 0, function () {
+    var basePath, apps, maskedData, rawData, _loop_1, _i, apps_1, app;
+    return __generator(this, function (_a) {
+        switch (_a.label) {
+            case 0:
+                basePath = "./stylesheets";
+                return [4 /*yield*/, readDir(basePath)];
+            case 1:
+                apps = _a.sent();
+                maskedData = {};
+                rawData = {};
+                _loop_1 = function (app) {
+                    var sheets, _loop_2, _b, sheets_1, sheet;
+                    return __generator(this, function (_c) {
+                        switch (_c.label) {
+                            case 0:
+                                rawData[app] = {};
+                                maskedData[lookupEncode(app)] = {};
+                                return [4 /*yield*/, readDir("".concat(basePath, "/").concat(app))];
+                            case 1:
+                                sheets = _c.sent();
+                                _loop_2 = function (sheet) {
+                                    var fileData, _d, _e, maskList, rawList, _loop_3, _f, fileData_1, variable;
+                                    return __generator(this, function (_g) {
+                                        switch (_g.label) {
+                                            case 0:
+                                                sheet = sheet.replace(/\.json$/, "");
+                                                rawData[app][sheet] = [];
+                                                maskedData[lookupEncode(app)][lookupEncode(sheet)] = [];
+                                                _e = (_d = JSON).parse;
+                                                return [4 /*yield*/, readFile("".concat(basePath, "/").concat(app, "/").concat(sheet, ".json"))];
+                                            case 1:
+                                                fileData = _e.apply(_d, [_g.sent()]);
+                                                maskList = maskedData[lookupEncode(app)][lookupEncode(sheet)], rawList = rawData[app][sheet];
+                                                _loop_3 = function (variable) {
+                                                    rawList.push(variable);
+                                                    var temp = {};
+                                                    Object.keys(variable).forEach(function (key) {
+                                                        temp[lookupEncode(key)] =
+                                                            key == "title"
+                                                                ? lookupEncode(variable[key], app + sheet)
+                                                                : variable[key];
+                                                    });
+                                                    maskList.push(temp);
+                                                };
+                                                for (_f = 0, fileData_1 = fileData; _f < fileData_1.length; _f++) {
+                                                    variable = fileData_1[_f];
+                                                    _loop_3(variable);
+                                                }
+                                                return [2 /*return*/];
+                                        }
+                                    });
+                                };
+                                _b = 0, sheets_1 = sheets;
+                                _c.label = 2;
+                            case 2:
+                                if (!(_b < sheets_1.length)) return [3 /*break*/, 5];
+                                sheet = sheets_1[_b];
+                                return [5 /*yield**/, _loop_2(sheet)];
+                            case 3:
+                                _c.sent();
+                                _c.label = 4;
+                            case 4:
+                                _b++;
+                                return [3 /*break*/, 2];
+                            case 5: return [2 /*return*/];
+                        }
+                    });
+                };
+                _i = 0, apps_1 = apps;
+                _a.label = 2;
+            case 2:
+                if (!(_i < apps_1.length)) return [3 /*break*/, 5];
+                app = apps_1[_i];
+                return [5 /*yield**/, _loop_1(app)];
+            case 3:
+                _a.sent();
+                _a.label = 4;
+            case 4:
+                _i++;
+                return [3 /*break*/, 2];
+            case 5:
+                fs.writeFileSync(path.resolve("./resultRaw.json"), JSON.stringify(rawData));
+                fs.writeFileSync(path.resolve("./resultMask.json"), JSON.stringify(maskedData));
+                return [2 /*return*/];
+        }
+    });
+}); };
+var lookupEncode = function (key, debugInfo) {
+    try {
+        return maskSchema.find(function (maskItem) { return maskItem.key == key; })
+            .mask;
+    }
+    catch (err) {
+        console.error("Could not find key of ".concat(key), debugInfo);
+    }
+};
+var lookupDecode = function (mask) {
+    return maskSchema.find(function (maskItem) { return maskItem.mask == mask; })
+        .key;
+};
+// runMaskTest();
+runTest();
+var gatherFiles = function (filePath) { return __awaiter(void 0, void 0, void 0, function () { return __generator(this, function (_a) {
+    return [2 /*return*/];
+}); }); };

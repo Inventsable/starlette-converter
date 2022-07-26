@@ -26,7 +26,7 @@
   { "title": "color-input", "delta": -12 },
   { "title": "color-btn-toolbar-hover-border", "delta": "+25" },
   { "title": "color-btn-toolbar-hover", "delta": -9 },
-  { "title": "color-brn-toolbar-active-border", "delta": "+13" },
+  { "title": "color-btn-toolbar-active-border", "delta": "+13" },
   { "title": "color-btn-toolbar-active", "delta": -19 },
   { "title": "color-btn-icon-hover-border", "delta": "+25" },
   { "title": "color-btn-icon-hover", "delta": "+13" },

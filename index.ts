@@ -1,7 +1,13 @@
 const fs = require("fs");
 const path = require("path");
+const maskSchema = require("./mask.json");
 
-import type { VariableCollection, VariableParam } from "./types";
+import type {
+  VariableCollection,
+  VariableParam,
+  MaskCollection,
+  MaskItem,
+} from "./types";
 
 const readFile = (filePath: string): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -38,11 +44,6 @@ const decodeKeys = (data: VariableCollection) => {
       };
     });
   const parentKeys = [
-    "dark",
-    "darkest",
-    "light",
-    "lightest",
-    "gradient",
     "ILST",
     "AEFT",
     "DRWV",
@@ -50,6 +51,12 @@ const decodeKeys = (data: VariableCollection) => {
     "IDSN",
     "PHXS",
     "PPRO",
+    "AUDT",
+    "dark",
+    "darkest",
+    "light",
+    "lightest",
+    "gradient",
   ].map((i) => {
     return {
       key: i,
@@ -80,7 +87,25 @@ const decodeWriter = (index: number) => {
   }
 };
 
-const runTest = async (param: string) => {
+const readDir = async (targetPath: string): Promise<string[]> => {
+  return new Promise((resolve, reject) => {
+    if (
+      !fs.existsSync(path.resolve(targetPath)) ||
+      !fs.lstatSync(path.resolve(targetPath)).isDirectory()
+    )
+      reject("Path is not a folder or does not exist");
+    fs.readdir(
+      path.resolve(targetPath),
+      { encoding: "utf-8" },
+      (err, files) => {
+        if (err) reject(err);
+        resolve(files);
+      }
+    );
+  });
+};
+
+const runMaskGenerationTest = async () => {
   let basePath = "./stylesheets/ILST/dark.json";
   let fileData = JSON.parse(
     await readFile(path.resolve(basePath))
@@ -92,3 +117,58 @@ const runTest = async (param: string) => {
   );
   console.log("Done");
 };
+
+const runConversionTest = async () => {
+  let basePath = "./stylesheets";
+  let apps = await readDir(basePath);
+  let maskedData = {};
+  let rawData = {};
+  for (let app of apps) {
+    rawData[app] = {};
+    maskedData[lookupEncode(app)] = {};
+    let sheets = await readDir(`${basePath}/${app}`);
+    for (let sheet of sheets) {
+      sheet = sheet.replace(/\.json$/, "");
+      rawData[app][sheet] = [];
+      maskedData[lookupEncode(app)][lookupEncode(sheet)] = [];
+      let fileData = JSON.parse(
+        await readFile(`${basePath}/${app}/${sheet}.json`)
+      ) as VariableCollection;
+      let maskList = maskedData[lookupEncode(app)][lookupEncode(sheet)],
+        rawList = rawData[app][sheet];
+      for (let variable of fileData) {
+        rawList.push(variable);
+        let temp = {};
+        Object.keys(variable).forEach((key) => {
+          temp[lookupEncode(key)] =
+            key == "title"
+              ? lookupEncode(variable[key], app + sheet)
+              : variable[key];
+        });
+        maskList.push(temp);
+      }
+    }
+  }
+  fs.writeFileSync(path.resolve("./resultRaw.json"), JSON.stringify(rawData));
+  fs.writeFileSync(
+    path.resolve("./resultMask.json"),
+    JSON.stringify(maskedData)
+  );
+};
+
+const lookupEncode = (key: string, debugInfo?: string) => {
+  try {
+    return maskSchema.find((maskItem: MaskItem): boolean => maskItem.key == key)
+      .mask;
+  } catch (err) {
+    console.error(`Could not find key of ${key}`, debugInfo);
+  }
+};
+
+const lookupDecode = (mask: string): string => {
+  return maskSchema.find((maskItem: MaskItem): boolean => maskItem.mask == mask)
+    .key;
+};
+
+// runMaskGenerationTest();
+runConversionTest();
