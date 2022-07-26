@@ -21,7 +21,25 @@ const readFile = (filePath: string): Promise<string> => {
     }
   });
 };
-const decodeKeys = (data: VariableCollection) => {
+const readDir = async (targetPath: string): Promise<string[]> => {
+  return new Promise((resolve, reject) => {
+    if (
+      !fs.existsSync(path.resolve(targetPath)) ||
+      !fs.lstatSync(path.resolve(targetPath)).isDirectory()
+    )
+      reject("Path is not a folder or does not exist");
+    fs.readdir(
+      path.resolve(targetPath),
+      { encoding: "utf-8" },
+      (err, files) => {
+        if (err) reject(err);
+        resolve(files);
+      }
+    );
+  });
+};
+
+const encodeKeys = (data: VariableCollection) => {
   const allKeys = data
     .map((a: VariableParam) => Object.keys(a))
     .flat()
@@ -65,18 +83,18 @@ const decodeKeys = (data: VariableCollection) => {
   });
   const masterList = [...parentKeys, allKeys, sorted].flat();
   masterList.forEach((entry: any, index: number) => {
-    entry.mask = decodeWriter(index);
+    entry.mask = encodeWriter(index);
   });
   return masterList;
 };
 
-const decodeWriter = (index: number) => {
+const encodeWriter = (index: number) => {
   const alpha = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
   try {
     if (index < alpha.length) return alpha[index];
     else {
       let dividend = Math.floor(index / alpha.length);
-      return `${decodeWriter(dividend - 1)}${decodeWriter(
+      return `${encodeWriter(dividend - 1)}${encodeWriter(
         index % alpha.length
       )}`;
     }
@@ -87,30 +105,12 @@ const decodeWriter = (index: number) => {
   }
 };
 
-const readDir = async (targetPath: string): Promise<string[]> => {
-  return new Promise((resolve, reject) => {
-    if (
-      !fs.existsSync(path.resolve(targetPath)) ||
-      !fs.lstatSync(path.resolve(targetPath)).isDirectory()
-    )
-      reject("Path is not a folder or does not exist");
-    fs.readdir(
-      path.resolve(targetPath),
-      { encoding: "utf-8" },
-      (err, files) => {
-        if (err) reject(err);
-        resolve(files);
-      }
-    );
-  });
-};
-
 const runMaskGenerationTest = async () => {
   let basePath = "./stylesheets/ILST/dark.json";
   let fileData = JSON.parse(
     await readFile(path.resolve(basePath))
   ) as VariableCollection;
-  let result = decodeKeys(fileData);
+  let result = encodeKeys(fileData);
   let treated = fs.writeFileSync(
     path.resolve("./mask.json"),
     JSON.stringify(result)
